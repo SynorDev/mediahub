@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#1d4ed8" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#grad-blue)"/>
+  <rect x="80" y="80" width="352" height="352" rx="48" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="80" y="80" width="352" height="96" rx="48" fill="#1e3a8a"/>
+  <!-- Top Pins -->
+  <rect x="144" y="44" width="36" height="80" rx="18" fill="#ffffff"/>
+  <rect x="332" y="44" width="36" height="80" rx="18" fill="#ffffff"/>
+  <!-- Letter M -->
+  <path d="M160 380 V 220 L 256 310 L 352 220 V 380 H 312 V 276 L 256 332 L 200 276 V 380 Z" fill="#2563eb"/>
+</svg>

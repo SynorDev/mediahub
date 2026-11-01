@@ -1,0 +1,78 @@
+# Plan de Implementación: Cliente Local de Renderizado GPU & Módulo de Edición en MediaHub
+
+Diseñar e implementar el sistema de renderizado automatizado de video acelerado por hardware para las estaciones de edición de Teleamiga, compuesto por el **Agente Local de Renderizado (Windows / Nvidia Quadro P2000)** y la **Interfaz Web en MediaHub con descarga e integración en tiempo real**.
+
+## User Review Required
+
+> [!IMPORTANT]
+> El agente local correrá en cada estación de edición en el puerto `18500` (`http://127.0.0.1:18500`). MediaHub ofrecerá la descarga directa del paquete cliente (ejecutable / lanzador) desde la sección de Herramientas de Edición para que los editores lo configuren con un solo clic.
+
+> [!TIP]
+> Dado que el agente corre localmente en Windows, integraremos un selector de archivos nativo de Windows (`OpenFileDialog`), permitiendo que el editor pulse "Examinar" en la web y se abra la ventana nativa de Windows para elegir sus archivos sin tipear rutas.
+
+## Proposed Changes
+
+### 1. Servidor MediaHub y Descarga de Cliente
+
+#### [NEW] [render_agent/](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/render_agent)
+- **`mediahub_render_agent.py`**:
+  - Servidor FastAPI + Uvicorn + WebSockets escuchando en `127.0.0.1:18500`.
+  - Configuración CORS y Private Network Access.
+  - Endpoints:
+    - `GET /health`: Estado del agente, versión y GPU detectada (`nvidia-smi` / `h264_nvenc`).
+    - `POST /browse-file`: Abre ventana nativa de Windows para seleccionar video (base, mosca, cierre).
+    - `POST /browse-save`: Abre ventana nativa de Windows para guardar destino.
+    - `POST /render`: Inicia proceso FFmpeg en segundo plano con cálculo de cola para la mosca y concatenación de cierre.
+    - `POST /cancel`: Aborta el render en ejecución.
+    - `WS /ws`: Stream bidireccional de progreso (frames, fps, porcentaje, tiempo transcurrido, tiempo restante, logs).
+- **`Iniciar_Agente_Render.bat`**:
+  - Script de arranque de un clic que verifica dependencias e inicia el agente en segundo plano.
+- **`compilar_exe.bat`**:
+  - Script de empaquetado para generar el ejecutable `.exe` independiente mediante PyInstaller.
+
+#### [NEW] [uploads/clients/MediaHub_Cliente_Render_Edicion.zip](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/uploads/clients/MediaHub_Cliente_Render_Edicion.zip)
+- Paquete listo para descarga que contiene el script/ejecutable del cliente, el lanzador `.bat` y un `README_INSTALACION.txt`.
+
+#### [MODIFY] [main.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/main.py)
+- Añadir endpoint `@app.get('/descargar-cliente-edicion')` para la entrega del paquete de instalación.
+- Añadir ruta `@ui.page('/herramientas/render-edicion')` vinculada a la nueva vista.
+
+---
+
+### 2. Frontend en MediaHub (Módulo de Herramientas de Edición)
+
+#### [NEW] [pages/render_edicion.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/pages/render_edicion.py)
+- Vista especializada para el área de Edición:
+  - Verificación de sesión y control de acceso por área (`edicion`, `postproduccion`, `sistemas`, `admin`).
+  - Ping periódico al agente local (`http://127.0.0.1:18500/health`).
+  - **Banner de Estado Desconectado:** Mensaje visual amigable con botón de descarga del instalador y guía de 3 pasos.
+  - **Banner de Estado Conectado:** Identificación de la GPU Nvidia Quadro P2000 con chip NVENC activo.
+  - Formulario con campos interactivos y botones para abrir el explorador de Windows nativo vía el agente.
+  - Monitor de render: Barra de progreso con gradiente moderno, contadores en vivo (FPS, %, tiempo transcurrido, tiempo restante) y consola colapsable de logs en vivo.
+
+#### [MODIFY] [pages/herramientas.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/pages/herramientas.py)
+- Añadir la tarjeta de la herramienta **"Motor de Renderizado Automatizado (GPU NVENC)"**.
+- Restringir la tarjeta para que solo los editores y administradores puedan abrirla o descargar el cliente.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Ejecutar el agente en segundo plano y verificar endpoint `/health`:
+  ```powershell
+  python render_agent/mediahub_render_agent.py
+  curl http://127.0.0.1:18500/health
+  ```
+- Probar endpoint de descarga:
+  ```powershell
+  curl -I http://127.0.0.1:8080/descargar-cliente-edicion
+  ```
+- Probar síntesis de comando FFmpeg con archivos de prueba simulando cálculo de duración y alineación de cola.
+
+### Manual Verification
+- Iniciar MediaHub (`python main.py`) y acceder como usuario con área de edición.
+- Verificar la nueva tarjeta en `/herramientas`.
+- Entrar a `/herramientas/render-edicion` y observar el estado desconectado y el botón de descarga.
+- Iniciar el agente local y verificar que la interfaz cambia inmediatamente a estado "🟢 Conectado - Nvidia GPU Detectada".
+- Probar el botón "Examinar en mi PC" y verificar que se abra el explorador de archivos nativo de Windows.

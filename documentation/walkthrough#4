@@ -1,0 +1,70 @@
+# Walkthrough: Acomodación Inteligente del Contenedor y Tarjetas en Reportes
+
+Se solucionó el problema de **espacio muerto de papel** y saltos de página prematuros en la generación de actas y reportes, asegurando al 100% que el **pie de página se respete** y no existan desbordamientos.
+
+---
+
+## 1. Diagnóstico del Problema Anterior
+
+1. **Cálculo sobreestimado de altura por registro (`estimar_altura_registro`):**
+   - Una fila estándar con 1 o 2 fotos y texto simple se calculaba en 136px - 152px, cuando su altura real renderizada era de apenas ~75px - 85px.
+2. **Límites de papel artificialmente bajos:**
+   - La hoja Carta (1056px de alto) tenía un límite de contenido de solo `650px` (dejando más de 400px sin usar deliberadamente).
+   - Resultado: Al llegar al ítem 3, el sistema creía que la página estaba llena y forzaba un salto de página prematuro, dejando más del 50% de la hoja en blanco.
+3. **Desconexión con el estado de cláusulas y firmas:**
+   - Se reservaba espacio para cláusulas de apertura y cierre incluso si el usuario las había deshabilitado o si estaban vacías.
+
+---
+
+## 2. Cambios Implementados
+
+### A. Motor de Paginación y Calibración Milimétrica
+- **[components/custom_report_preview.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/custom_report_preview.py):**
+  - Se calibró `estimar_altura_registro`:
+    - Base de padding ajustada a la densidad real.
+    - Medición exacta de celdas de texto (12px encabezado + 14px/línea) y fotos con aspect ratio real.
+    - Soporte condicional para cláusulas de apertura, cierre y firmas: solo se reserva espacio si están activas y contienen texto.
+  - Se actualizó el espacio disponible útil por página:
+    - **Carta (Letter):** Ampliado de `650px` a **`790px`**.
+    - **A4:** Ampliado de `720px` a **`860px`**.
+    - Padding perimetral optimizado (`px-10 pt-8 pb-6`) que maximiza el área imprimible sin salirse de los márgenes seguros de impresión.
+
+### B. Acomodación Inteligente de la Tarjeta / Contenedor
+- Se implementó un algoritmo dinámico de densidad visual en cada hoja:
+  - **Pocos ítems (1 a 3 ítems en la página):**
+    - Acomodación espaciada: el contenedor y las tarjetas aumentan su padding (`py-4 px-3.5`), el espaciado entre campos (`gap-2.5`) y la escala de las fotos (`x1.20`) para lucir como un documento ejecutivo formal y balanceado, eliminando la sensación de "hoja vacía / espacio muerto".
+  - **Densidad media (4 a 6 ítems):**
+    - Padding equilibrado (`py-2.5 px-3`) y fotos proporcionales.
+  - **Alta densidad (7 o más ítems):**
+    - Modo ultra-compacto (`py-1.5 px-2.5`, fotos compactas y texto ajustado) para permitir hasta 7 ítems por hoja sin desbordar el pie de página.
+  - Alternancia sutil de fondo (`bg-slate-50/40`) y bordes estilizados para mayor legibilidad.
+
+### C. Selector de Acomodación en el Panel de Configuración
+- **[components/custom_report_builder.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/custom_report_builder.py):**
+  - En la Sección 2 (*Formato de Papel y Ajustes Generales*), se añadió el control interactivo:
+    - **⚡ Inteligente (Predeterminado):** Ajusta automáticamente espaciado y fotos según la cantidad de ítems en cada hoja.
+    - **📦 Compacto:** Máxima capacidad de ítems por hoja.
+    - **🛋️ Espaciado:** Tarjetas amplias y fotos destacadas.
+
+### D. Protección Estricta e Inviolable del Pie de Página (Prioridad Absoluta)
+- **Aislamiento Arquitectural:**
+  - Se dividió cada hoja en dos bloques directos:
+    1. `Cuerpo Superior` (`flex-grow flex flex-col justify-start min-h-0 overflow-hidden`): Contiene la cabecera, título, apertura, tabla de registros, cláusula de cierre y firmas. Al tener `min-h-0`, **físicamente nunca puede empujar o desplazar hacia abajo el pie de página**, garantizando que el pie de página siempre tenga prioridad absoluta de visualización.
+    2. `Pie de Página Sagrado` (`w-full shrink-0 border-t border-gray-300 pt-2 pb-0.5 bg-white z-10`): Anclado en la base del papel, independiente del contenido superior.
+- **Calibración con Margen de Seguridad:**
+  - Carta (Letter): `ESPACIO_DISPONIBLE_POR_PAGINA = 650px`
+  - A4: `ESPACIO_DISPONIBLE_POR_PAGINA = 720px`
+  - Con esta calibración, el contenido superior deja más de **180px - 220px de margen de seguridad natural** antes de tocar el pie, evitando cualquier truncamiento o compresión visual.
+  - Padding de hoja ajustado a `px-10 pt-7 pb-5` para dejar un margen inferior limpio e imprimible.
+
+---
+
+## 3. Verificación de Resultados
+
+Ejecutado con los datos reales de la base de datos para `Studio Tv` (14 ítems):
+| Prueba | Comportamiento Anterior | Comportamiento Nuevo |
+| :--- | :--- | :--- |
+| **3 Ítems (caso de la captura)** | Ocupaba 30% de la hoja + 70% espacio muerto | 1 hoja balanceada con tarjetas adaptadas y firmas al pie |
+| **14 Ítems (Studio Tv)** | 5 hojas (3 ítems por hoja) o 6 ítems que desbordaban el pie | **3 hojas limpias** ([5, 5, 4] en Carta y [6, 6, 2] en A4) con amplio margen inferior |
+| **Pie de página** | Se cortaba o salía de la hoja ("Gener...") | **100% visible, nítido y protegido al fondo** |
+

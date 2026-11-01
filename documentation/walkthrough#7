@@ -1,0 +1,92 @@
+# Walkthrough: Herramienta de Encuesta Interna Canal Teleamiga
+
+Se ha implementado exitosamente la herramienta de encuestas institucionales en MediaHub, adaptando en su totalidad el documento oficial `ejemplos/ENCUESTA INTERNA canal teleamiga.docx` ("ENCUESTA INTERNA — CONSTRUYAMOS LA NUEVA TELEAMIGA") con sistema de notificaciones globales automáticas para **todos los usuarios actuales y nuevos**.
+
+---
+
+## 🚀 Resumen de Capacidades Implementadas
+
+### 1. Acceso Universal en Herramientas (`/herramientas`)
+- **Apertura del módulo a todos los departamentos**: Se eliminó la restricción que bloqueaba a usuarios fuera de Ingeniería o Gerencia. Ahora los colaboradores de Producción, Programación, Pauta, Sistemas, Ingeniería y Gerencia tienen acceso al hub de herramientas.
+- **Tarjeta de la Encuesta**:
+  - Título: *Encuesta Interna: Construyamos la nueva Teleamiga*.
+  - Indicador de estado en tiempo real:
+    - `PENDIENTE POR RESPONDER` (Rojo / animado).
+    - `BORRADOR EN CURSO` (Ámbar).
+    - `COMPLETADA` (Verde con fecha de envío).
+  - Acceso directo para comenzar, continuar o revisar respuestas.
+- **Acceso Exclusivo a Retransmisiones (MINTIC RTI)**:
+  - Mantenido exclusivamente para Ingeniería y Gerencia con validación de rol.
+
+---
+
+### 2. Notificaciones Automáticas (Usuarios Actuales y Nuevos)
+- **Campana de Notificaciones en la Barra Superior (`topbar`)**:
+  - Badge rojo animado con contador `1` cuando el colaborador tiene la encuesta pendiente.
+  - Menú desplegable interactivo que muestra:
+    - *Nueva Encuesta Asignada* con acceso directo `Responder Encuesta`.
+    - Al enviar la encuesta, la notificación se actualiza automáticamente a estado "Al día".
+- **Badge en el Menú Lateral (`sidebar`)**:
+  - Badge `1 PENDIENTE` sobre la sección de Herramientas y acceso directo a la encuesta.
+- **Usuarios Nuevos**:
+  - Cualquier nuevo colaborador que se registre a través de `/register` o sea creado en el sistema hereda automáticamente la notificación de encuesta pendiente desde su primer inicio de sesión.
+
+---
+
+### 3. Aplicación de Encuesta (`/herramientas/encuesta`)
+Adaptación fiel de las **28 preguntas** del documento docx organizadas en 6 secciones temáticas:
+1. **Diagnóstico Actual y Fortalezas** (Preguntas 1 a 5).
+2. **Audiencias y Horarios** (Preguntas 6 y 7).
+3. **Temáticas y Enfoques** (Preguntas 8 a 11).
+4. **Formatos y Franjas de Programación** (Preguntas 12 a 18).
+5. **Nuevas Propuestas y Producción** (Preguntas 19 a 23).
+6. **Transformación y Visión de Futuro** (Preguntas 24 a 28).
+
+**Características interactivas:**
+- Validación de selecciones máximas con contadores en tiempo real (ej: "Seleccionados: 2 de máximo 3").
+- Campos dinámicos para "Otra opción" cuando aplica.
+- Pregunta 23: Componente de priorización ordinal (1 a 7) para criterios de nuevos programas.
+- Guardado de **Borrador** para no perder progreso.
+- Envío definitivo con ventana de confirmación y mensaje de felicitación.
+
+---
+
+### 4. Métricas y Exportación a Excel (`/herramientas/encuesta/resultados`)
+- Panel exclusivo para Gerencia, Sistemas e Ingeniería:
+  - Total de respuestas recibidas en tiempo real.
+  - Gráficas de barras de participación por área/departamento.
+  - Votación porcentual por cada opción de las preguntas cuantitativas.
+  - Botón **"Exportar a Excel (.xlsx)"**: genera y descarga una hoja de cálculo con:
+    - Hoja 1: Matriz completa con todas las respuestas detalladas por colaborador.
+    - Hoja 2: Resumen ejecutivo y conteos consolidados.
+
+---
+
+## 📸 Evidencias Visuales de la Verificación en Navegador
+
+### 1. Barra Superior con Campana de Notificación y Badge Pendiente
+![Campana de Notificaciones con Badge](/Users/DESARROLLO/.gemini/antigravity-ide/brain/765a7e9b-2a57-486d-bd2c-454e5bee27c8/topbar_notification_badge_1789761875405.png)
+
+---
+
+### 2. Despliegue del Menú de Notificaciones
+![Menú Desplegable con Encuesta Pendiente](/Users/DESARROLLO/.gemini/antigravity-ide/brain/765a7e9b-2a57-486d-bd2c-454e5bee27c8/notification_popover_1789761954705.png)
+
+---
+
+### 3. Tienda de Herramientas con la Tarjeta Activa
+![Herramientas - Encuesta Interna](/Users/DESARROLLO/.gemini/antigravity-ide/brain/765a7e9b-2a57-486d-bd2c-454e5bee27c8/herramientas_tool_card_1789762044976.png)
+
+---
+
+### 4. Interfaz de Respuesta de la Encuesta
+![Formulario de Encuesta Teleamiga](/Users/DESARROLLO/.gemini/antigravity-ide/brain/765a7e9b-2a57-486d-bd2c-454e5bee27c8/survey_page_1789762189450.png)
+
+---
+
+## 🧪 Pruebas Automatizadas Ejecutadas
+- Inicialización y sembrado de la encuesta oficial: **28 preguntas y 6 secciones cargadas**.
+- Notificación pendiente validada para todos los usuarios existentes (`jose`, `orlando`, `jaime`, `claudia`, `zhayrus`).
+- Flujo de guardado de borrador y finalización probado.
+- Generación y descarga de archivo Excel `.xlsx` validada con `openpyxl`.
+- Simulación de nuevo usuario registrado verificada (recibe notificación automáticamente).

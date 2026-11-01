@@ -1,0 +1,104 @@
+# Plan de Implementación: Parrilla de Emisión y Carga Homologable de Excel para Programación
+
+Este plan describe la arquitectura y desarrollo para:
+1. **Optimizar la vista de calendario mensual** para que días con alta densidad de programas (30 a 50 emisiones por día) se muestren limpios, profesionales y sin saturar la cuadrícula.
+2. **Crear el Importador de Excel Homologable para el Área de Programación** (siguiendo el mismo patrón y asistente por pasos del importador de inventario, con mapeo dinámico de columnas, extracción de fechas y desglose de modalidades `(V)`, `(P)`, `(R)`).
+3. **Adaptar la vista de línea de tiempo diaria a 24 horas continuas** (00:00 a 23:59) para la parrilla de emisión.
+
+---
+
+## 1. Diseño de la Vista de Calendario Mensual (Sin Saturar la Cuadrícula)
+
+### Comportamiento en `calendar_view.py`:
+En lugar de amontonar 38 textos dentro del recuadro del día (lo cual rompería el diseño):
+- **Días con Programación Masiva ($\ge 5$ emisiones / Parrilla de TV):**
+  - Muestra un badge / chip compacto y elegante: `📺 Parrilla (38 progs)`.
+  - Si hay emisiones en vivo `(V)`, añade un indicador distintivo: `🔴 4 En Vivo`.
+  - Muestra un resumen visual limpio con fondo sutil y borde indicador.
+- **Días con Eventos Regulares (1 a 4 eventos):**
+  - Muestra hasta 2 o 3 píldoras con la hora y el nombre del programa, y si hay más, un indicador `+N más`.
+- **Al hacer clic en el día:**
+  - Abre el panel lateral derecho (`timeline_panel.py`), donde se visualiza el desglose completo de las 24 horas con sus franjas y detalles.
+
+---
+
+## 2. Importador de Excel Homologable para Programación (`parrilla_excel_importer.py`)
+
+Siguiendo la misma filosofía de [`excel_importer.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/excel_importer.py), crearemos un asistente interactivo en 3 pasos:
+
+```mermaid
+flowchart TD
+    A[Paso 1: Cargar Excel .xlsx de Parrilla] --> B[Paso 2: Homologación y Mapeo Inteligente]
+    B --> C[Paso 3: Vista Previa y Validación de las 24h]
+    C --> D[Paso 4: Inserción Masiva en SQLite events para 'programacion']
+    D --> E[Actualización Reactiva del Calendario y Timeline]
+```
+
+### Paso 1: Carga y Detección Automática
+- Permite arrastrar o subir cualquier archivo Excel de parrilla (ej. `PARRILLA MARTES 8 DE SEPTIEMBRE DE 2026.xlsx`).
+- Lee el archivo con `openpyxl`.
+- **Detección de Fecha:** Extrae automáticamente la fecha del documento (ej. *"MARTES 8 DE SEPTIEMBRE DE 2026"* $\rightarrow$ `2026-09-08`), permitiendo al usuario confirmarla o cambiarla con un selector de fecha si lo desea.
+
+### Paso 2: Homologación de Columnas (Mapeo Flexible)
+El usuario ve los campos requeridos para la emisión y puede mapearlos a las columnas del Excel con selectores desplegables:
+- **Horario / Rango Horario:** Auto-detecta la columna `HORARIO` (`00:00 - 00:30`, `08:30 - 09:00`, etc.).
+- **Programa / Título:** Auto-detecta la columna con el nombre del programa (ej. `MARTES 8 DE SEPTIEMBRE...`).
+- **Modalidad / Tipo de Emisión:**
+  - Extrae y normaliza automáticamente los tags entre paréntesis:
+    - `(V)` $\rightarrow$ **En Vivo**
+    - `(P)` $\rightarrow$ **Pregrabado**
+    - `(R)` $\rightarrow$ **Repetición**
+    - `(C)` / `(E)` $\rightarrow$ **Comercial / Especial**
+- **Observaciones / Cortes Comerciales:** Auto-detecta columna `OBSERVACIONES DE ESTE MATERIAL` (ej. `SEGUNDO CORTE: 120 SEGUNDOS`, `AL FINALIZAR: MINUTO DE DIOS`).
+- **Capítulo / Detalle:** Extrae automáticamente el subtítulo o tema tras el guión (ej. `LA ACCIDENTALIDAD LABORAL`).
+
+### Paso 3: Vista Previa y Confirmación Masiva
+- Muestra una tabla con los 30-50 bloques ordenados cronológicamente desde las 00:00 hasta las 23:59.
+- Botón: `✅ Confirmar e Importar 38 Emisiones a la Parrilla`.
+- Inserta todos los registros en la base de datos `events` vinculados al área `programacion`.
+
+---
+
+## 3. Adaptación de la Línea de Tiempo a 24 Horas (`timeline_panel.py`)
+
+Para el área de **Programación**:
+- La línea de tiempo cubrirá las 24 horas del día (`00:00` a `24:00`).
+- Se añade el botón `📥 Importar Parrilla Excel` directamente en la cabecera del día.
+- Badges de color por modalidad: 🔴 En Vivo, 🔵 Pregrabado, ⚪ Repetición, 🟢 Comercial.
+
+---
+
+## Propuesta de Cambios por Componente
+
+### [NEW] `components/parrilla_excel_importer.py`
+- Asistente de importación con layout Quasar dialog.
+- Parser de Excel con detección de fecha en español, rangos de hora `HH:MM - HH:MM`, tags de modalidad `(V)/(P)/(R)` y observaciones de pauta.
+- Mapeador de columnas homologable y vista previa interactiva.
+
+### [MODIFY] `components/calendar_view.py`
+- Enriquecer la tarjeta del día en la cuadrícula mensual:
+  - Para días con $\ge 5$ eventos (parrilla): Renderizar badge `📺 38 emisiones` y chip `🔴 N en vivo`.
+  - Para días con 1-4 eventos: Renderizar mini-chips limpios con truncate.
+  - Eliminar desbordes y mantener la cuadrícula con tamaño homogéneo y ordenado.
+
+### [MODIFY] `components/timeline_panel.py`
+- Soporte para jornada completa de 24 horas (`00:00` a `24:00`) cuando el usuario está en el área de `programacion` (o configurable).
+- Botón de acceso directo `📥 Cargar Parrilla Excel` en la cabecera del día.
+- Renderizado de badges para `(V)`, `(P)`, `(R)` y pautas comerciales.
+
+### [MODIFY] `database.py`
+- Función `bulk_add_events(events_list)` para inserción masiva en una sola transacción SQLite (ultra rápido, $< 0.1$ segundos).
+
+---
+
+## Plan de Verificación
+
+### Pruebas Automatizadas:
+1. Ejecutar script de prueba con el archivo real `ejemplos/PARRILLA MARTES 8 DE SEPTIEMBRE DE 2026.xlsx`.
+2. Verificar que se extraigan correctamente los 38 bloques de programas, sus horas de inicio/fin, fecha `2026-09-08`, modalidades `(V)`, `(P)`, `(R)` y observaciones.
+3. Verificar la inserción masiva en SQLite y la visibilidad en `get_events_by_date` y `get_events_by_month`.
+
+### Verificación Visual:
+1. Validar que la cuadrícula mensual no sufra ningún desborde y muestre las tarjetas de días limpias con su contador de programas.
+2. Abrir el modal de importación, subir el archivo Excel, verificar la homologación de columnas y la vista previa.
+3. Confirmar la carga y verificar el desglose de 24 horas en el panel lateral.

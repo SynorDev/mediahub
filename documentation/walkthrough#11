@@ -1,0 +1,66 @@
+# Walkthrough: Sistema Integral de Actas de Entrega Virtuales y Firmas Digitales
+
+Se ha completado con éxito la implementación completa para la asignación de responsables, emisión de actas virtuales, notificación de recibido con badge in-app, firma digital interactiva para el usuario receptor y para Ingeniería, y estampado automático en el reporte oficial.
+
+---
+
+## 🚀 Flujo Integral Implementado
+
+### 1. Asignación del Responsable Vinculado (`system_staff`)
+- En el maquetador de actas (`/reportes_inventario/system_inventory?record_id=417`), la sección **`2. Responsable / Destinatario del Acta`** permite seleccionar a cualquier colaborador del personal oficial (`system_staff`).
+- Incluye botón **`💾 Vincular este Responsable al Equipo en Inventario`** para guardar la asignación directamente en la base de datos de inventario.
+- La cláusula de apertura del documento sustituye automáticamente el nombre y correo del colaborador seleccionado.
+
+### 2. Emisión de Acta Virtual y Notificación de Recibido
+- Con el botón **`📤 Emitir Acta Virtual y Notificar al Colaborador`**, el sistema genera un código oficial único (ej. `ACT-20260923-81EEFB`) y registra el acta en la tabla `equipment_delivery_acts`.
+- **Notificación en Campana (Topbar) y Sidebar:** Al usuario receptor (emparejado por correo o nombre) y a los miembros de Ingeniería les aparece un **badge animado de notificación pendiente**. Al hacer clic en la campana, se despliega la tarjeta con el detalle del equipo y el botón directo:
+  > **`✍️ Revisar y Firmar Acta`**
+
+### 3. Portal de Firma Virtual (`/acta_entrega/{acta_code}`)
+- El usuario o receptor accede a su acta oficial interactiva con:
+  - Información completa del equipo asignado (modelo, serial, categoría, observaciones).
+  - Cláusula de entrega y declaración de compromiso de cuidado del bien.
+  - **Estación de Firma Digital:**
+    - **Lienzo Interactivo (Canvas HTML5):** Permite dibujar la firma con mouse, puntero táctil o smartphone, con opción de limpiar trazo.
+    - **Carga de Imagen:** Opción de subir archivo de firma (.PNG transparente o .JPG).
+    - Botón **`Confirmar y Estampar Firma Oficial`** que guarda la firma en Base64 con fecha y hora exacta.
+
+### 4. Firma de Ingeniería
+- Puede estamparse de dos formas convenientes:
+  1. Directamente desde el maquetador de actas con el botón **`✍️ Firmar como Ingeniería`**, que abre un diálogo modal con lienzo táctil o subida de imagen sin salir del maquetador.
+  2. Desde la página virtual del acta (`/acta_entrega/{acta_code}`) seleccionando el rol de Emisor (Ingeniería y Sistemas).
+
+### 5. Reporte Oficial Final con Firmas Estampadas
+- Una vez registradas las firmas, el reporte A4/Carta oficial:
+  - Estampa gráficamente ambas firmas sobre sus respectivas líneas institucionales.
+  - Muestra los sellos de fecha y hora: `✓ Firmado: DD/MM/AAAA HH:MM`.
+  - Muestra el estado del acta como **`✓ TOTALMENTE FIRMADA`**.
+  - Permite descargar o imprimir el documento oficial mediante **`Exportar PDF`**.
+
+---
+
+## 📸 Evidencias de Verificación Visual
+
+### 1. Acta Virtual Firmada por el Receptor
+![Acta Virtual Firmada](file:///C:/Users/DESARROLLO/.gemini/antigravity-ide/brain/33d0e718-a4d3-4f21-a15a-091890449d16/acta_entrega_receptor_signed_1790188664405.png)
+
+### 2. Panel de Control del Acta y Firmas en el Maquetador
+![Panel con Acta Totalmente Firmada](file:///C:/Users/DESARROLLO/.gemini/antigravity-ide/brain/33d0e718-a4d3-4f21-a15a-091890449d16/reporte_inventario_totalmente_firmado_1790188925571.png)
+
+### 3. Reporte Final con Ambas Firmas Estampadas
+![Firmas Estampadas en el Reporte](file:///C:/Users/DESARROLLO/.gemini/antigravity-ide/brain/33d0e718-a4d3-4f21-a15a-091890449d16/reporte_inventario_firmas_estampadas_1790188966392.png)
+
+---
+
+## 📁 Archivos Modificados e Implementados
+
+| Archivo | Responsabilidad |
+|---|---|
+| [`database.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/database.py) | Creación de tabla `equipment_delivery_acts`, índices y funciones CRUD (`create_or_update_delivery_act`, `sign_delivery_act`, `get_pending_delivery_acts_for_user`, `get_delivery_act_by_code`, `get_delivery_act_by_record`). |
+| [`pages/acta_entrega_virtual.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/pages/acta_entrega_virtual.py) | Página oficial interactiva de visualización y estación de firma digital táctil/archivo. |
+| [`components/custom_report_builder.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/custom_report_builder.py) | Integración del selector de personal vinculado, emisión de actas con notificación, sincronización en vivo y modal de firma para Ingeniería. |
+| [`components/topbar.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/topbar.py) | Campana de notificaciones con badge dinámico y menú de actas pendientes de firma para el usuario actual. |
+| [`components/sidebar.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/sidebar.py) | Contador y acceso directo en la barra lateral a trámites y firmas pendientes. |
+| [`components/report_header_footer.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/report_header_footer.py) | Renderizado gráfico de firmas virtuales con sellos de fecha y hora sobre las líneas oficiales. |
+| [`components/report_page_canvas.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/report_page_canvas.py) | Paso de datos de firmas virtuales (`firma_receptor_b64`, `firma_emisor_b64`) al lienzo de impresión A4/Carta. |
+| [`main.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/main.py) | Registro de la ruta `@ui.page('/acta_entrega/{acta_code}')`. |

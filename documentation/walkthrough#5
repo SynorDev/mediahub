@@ -1,0 +1,40 @@
+# Walkthrough: Depuración y Organización de Tablas, Paginación y Vista Previa en Reportes de Inventario
+
+Se completó con éxito la implementación del plan de depuración y saneamiento para los módulos de reporte de inventario (`components/custom_report_preview.py`, `components/custom_report_builder.py` y `pages/reportes_inventario.py`).
+
+---
+
+## 1. Problemas Identificados y Solucionados
+
+| Problema Previo | Causa Raíz | Solución Aplicada |
+| :--- | :--- | :--- |
+| **Hojas en Blanco (Págs 1 y 2)** | El algoritmo antiguo hacía `paginas.append([])` de manera reactiva y forzaba saltos si la cláusula de apertura restaba más del umbral estimado. | Se implementó un **algoritmo determinista** que garantiza que cada página contenga al menos 1 registro (cero listas vacías `[]`). El primer elemento siempre se incluye en la hoja actual. |
+| **Desbordamiento Horizontal y Recorte de Borde Derecho** | `report_main` en `reportes_inventario.py` tenía `overflow-x-hidden` sin `min-w-0`, cortando el ancho del papel de 816px en pantallas estándar o cuando el panel lateral de 380px estaba abierto. | Se actualizó el lienzo a `flex-grow min-w-0 overflow-x-auto overflow-y-auto`, permitiendo scroll horizontal suave y garantizando que el 100% de la hoja y el pie de página sean visibles. |
+| **Pérdida de Pie de Página por Desacople de Altura** | `estimar_altura_registro` calculaba tamaños de fotos de 38px cuando en el DOM real se renderizaban hasta 85px (`foto_mult` de 1.25), acumulando más de 200px de desfase por hoja y empujando el pie fuera del lienzo físico. | Se sincronizó de forma idéntica el cálculo de `estimar_altura_registro` con el modo de acomodación (`compacto`, `comodo`, `auto`), tamaños reales de fotos (32px-85px) y paddings reales de celdas. |
+| **Reacomodación Inteligente del Cierre y Firmas** | Cuando las firmas no cabían en la última hoja con todos sus registros, se sobrecargaba la hoja o se creaban páginas huérfanas sin datos. | Si las firmas no caben junto con todos los ítems de la última hoja, se traslada de manera controlada el último ítem a una nueva página para que acompañe al bloque de firmas y cláusula de cierre, manteniendo un documento armónico y formal. |
+
+---
+
+## 2. Archivos Modificados
+
+1. [pages/reportes_inventario.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/pages/reportes_inventario.py)
+   - Se reemplazó `overflow-x-hidden` por `flex-grow min-w-0 h-full overflow-y-auto overflow-x-auto` en el contenedor `report_main`.
+2. [components/custom_report_preview.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/custom_report_preview.py)
+   - **`estimar_altura_registro`**: Sincronización exacta de fuentes, saltos de línea de texto, fotos (`foto_mult`), accesorios y badges con el DOM real.
+   - **`render_custom_a4_paper`**: Paginación determinista a prueba de páginas vacías, `box-border` estricto en `PAPER_CLASSES`, y fijación garantizada del pie de página al borde inferior sin desplazamiento horizontal.
+3. [components/custom_report_builder.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/custom_report_builder.py)
+   - **`desglosar_registros_para_reporte`**: Validación defensiva para descartar registros nulos o malformados antes de alimentar el motor de paginación.
+   - **`obtener_registros_activos`**: Fallback seguro al primer contenedor disponible si el contenedor seleccionado no coincide o viene vacío.
+
+---
+
+## 3. Verificación en Vivo (Resultados del Navegador)
+
+Se realizó una inspección visual interactiva en tiempo real sobre la ruta oficial:
+`http://127.0.0.1:5480/reportes_inventario/system_inventory`
+
+- **Página 1**: Se visualiza inmediatamente con encabezado oficial (*TELEHUB / Studio Tv*), metadatos, título formal y las primeras filas de equipos y kits. **Cero páginas en blanco**.
+- **Páginas 2 a 6**: Distribución balanceada de los 27 ítems desglosados en formato Carta (`Letter`), aprovechando el espacio vertical de manera homogénea.
+- **Pie de Página Sagrado**: En cada una de las 6 páginas aparece nítido el pie de página (`Página 1 de 6`, ..., `Página 6 de 6`, ID de Documento, Área y Usuario) sin desbordamiento horizontal ni vertical.
+- **Captura de comprobación**:
+  ![Vista Previa Hoja 1](C:\Users\DESARROLLO\.gemini\antigravity-ide\brain\fba5df20-0e2a-47fd-b247-d425df30c55b\inventory_report_page1_1789572851321.png)

@@ -1,0 +1,46 @@
+# Walkthrough: Interconexión y Deduplicación de Eventos (Producción - Programación)
+
+Se resolvió la duplicidad de eventos entre los departamentos de **Producción** y **Programación** para programas coincidentes (como **"VIVIENDO LA VIDA"** y **"REDES ABIERTAS"**), logrando que ambos departamentos compartan un único evento maestro enriquecido y bidireccional en lugar de tener tarjetas duplicadas.
+
+---
+
+## 1. Unificación Inmediata en Base de Datos (Eventos de Hoy)
+
+Se ejecutó el script de migración y fusión [merge_duplicate_events.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/scratch/merge_duplicate_events.py) que detectó los eventos duplicados cruzados en `mediahub.db` para el día `2026-09-15` y los unificó:
+
+| Programa | Horario | Evento Maestro | Datos Integrados de Producción | Estado |
+| :--- | :--- | :--- | :--- | :--- |
+| **VIVIENDO LA VIDA** | `09:00 - 10:00` | **ID 265** (*Programación*) | **Productor:** Alfredo Gutiérrez<br>**Estudio:** ESTUDIO 1/ MASTER 1<br>**Cámara:** Wiliam Giraldo<br>**Switcher:** Freddy Castellanos<br>**Sonido:** Fabián Steven Aguilera | **CONFIRMADO** (Registro duplicado ID 394 eliminado) |
+| **REDES ABIERTAS** | `08:30 - 09:00` | **ID 264** (*Programación*) | **Productor:** Mauricio Ospina<br>**Estudio:** ESTUDIO 4/MASTER 3<br>**Cámara:** Wiliam Giraldo<br>**Switcher:** Wiliam Giraldo<br>**Sonido:** Fabián Steven Aguilera | **CONFIRMADO** (Registro duplicado ID 393 eliminado) |
+| **CÁPSULAS / UGC** | `15:10 - 15:30` | **ID 273** (*Programación*) | **Productor:** Laura Vega / Alfredo Gutiérrez<br>**Locación:** EXTERIOR<br>**Cámara / Switcher:** Nestor Johann Rincón | **CONFIRMADO** (Registro duplicado ID 395 eliminado) |
+
+---
+
+## 2. Implementación de "Smart Merge" Bidireccional en Código
+
+### A. Detección y Normalización en [database.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/database.py)
+* Se agregaron las funciones auxiliares `normalize_program_name`, `time_to_minutes` y `events_match_cross_area` que normalizan mayúsculas, tildes, signos de puntuación y sufijos como `(V)` o `(R)`, y evalúan si los horarios coinciden o se solapan en tiempo.
+* Se actualizó `bulk_add_events`:
+  * **Al importar Producción:** Si encuentra un evento existente de Programación para ese programa y horario, **no crea un registro nuevo**. En su lugar, inyecta directamente el equipo técnico (`productor`, `locacion`, `camaras`, `switcher`, `sonido`, `equipos`), activa `compartir_produccion: True` y actualiza el estado a `confirmado`. Si es un evento exclusivo (ej. grabaciones externas sin emisión simultánea), se inserta normalmente.
+  * **Al importar Programación:** Si Producción ya había cargado asignaciones de equipo técnico, se preservan automáticamente al actualizar la parrilla y se absorbe cualquier registro duplicado aislado.
+
+### B. Indicador Visual en el Importador de Excel en [components/parrilla_excel_importer.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/parrilla_excel_importer.py)
+* En el **Paso 3 (Vista Previa)**, el sistema evalúa en tiempo real los eventos de la otra área y muestra un badge distintivo:
+  `🔗 Se interconectará con Programación` (o Producción).
+* La notificación final detalla cuántos programas fueron interconectados con éxito.
+
+---
+
+## 3. Pruebas y Validación Realizadas
+
+### A. Prueba Unitaria Bidireccional ([test_smart_merge_e2e.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/scratch/test_smart_merge_e2e.py))
+Se crearon y ejecutaron 4 pruebas automáticas:
+1. **Paso 1:** Programación importa parrilla con `VIVIENDO LA VIDA`.
+2. **Paso 2:** Producción importa cronograma con asignaciones técnicas para `VIVIENDO LA VIDA` y un evento exclusivo.
+3. **Paso 3:** Se verificó que en la base de datos existe **exactamente 1 registro** para `VIVIENDO LA VIDA`, visible para ambas áreas con sus respectivos datos fusionados.
+4. **Paso 4 (Orden inverso):** Programación re-importa la parrilla con cambios de tema; se comprobó que el equipo técnico asignado por Producción se mantiene intacto.
+Resultado: `ALL 4 TESTS PASSED! FULL BIDIRECTIONAL SMART MERGE VERIFIED!`
+
+### B. Verificación de la Línea de Tiempo
+* En la fecha `2026-09-15`, tanto Producción como Programación ven **una sola tarjeta unificada** para "VIVIENDO LA VIDA" (09:00 - 10:00) y "REDES ABIERTAS" (08:30 - 09:00).
+* La tarjeta ya no aparece duplicada ni en paralelo. Al abrirla, cada área tiene acceso a su información respectiva y al detalle del equipo asignado por Producción.

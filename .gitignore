@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.bak
+
+# Virtual Environments
+venv/
+env/
+.venv/
+ENV/
+
+# NiceGUI cache & state
+.nicegui/
+
+# Build & PyInstaller artifacts
+build/
+dist/
+*.exe
+
+# Databases & local storage
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads and temporary data
+uploads/*
+!uploads/.gitkeep
+
+# Sample data & real documents (PII / Legal documents)
+ejemplos/
+*.xlsx
+*.xls
+*.csv
+
+# Scratch, backups & testing files
+scratch/
+componentsBACKUP/
+
+# Logs & Environment variables
+*.log
+.env
+.env.*
+
+# IDE & Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo

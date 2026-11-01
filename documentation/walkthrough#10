@@ -1,0 +1,40 @@
+# Walkthrough: Solución Integral del Agente de Renderizado y Explorador de Windows
+
+Se identificaron y corrigieron los problemas de apertura del explorador de archivos nativo de Windows y la visibilidad de los logs del renderizado.
+
+---
+
+## 1. Problemas Identificados y Solución Aplicada
+
+### A. El botón "Examinar en mi PC" no abría el explorador de Windows
+- **Causa:** El agente estaba utilizando `tkinter.filedialog`. En aplicaciones congeladas (`.exe`) de PyInstaller ejecutadas en hilos secundarios asíncronos, Tkinter suele colgarse o bloquearse esperando el bucle principal de Tcl.
+- **Solución implementada:** Se reemplazó completamente por la API pura de Windows **`comdlg32.dll`** (`GetOpenFileNameW` y `GetSaveFileNameW`) mediante `ctypes`.
+  - Es la API nativa del sistema operativo Windows presente en todas las versiones.
+  - Abre instantáneamente la ventana real del Explorador de Windows en primer plano (`GetForegroundWindow`).
+  - No depende de Tkinter ni de librerías externas.
+
+### B. Falta de feedback y logs claros en la terminal y en el navegador
+- **Causa:**
+  1. El agente procesaba la orden internamente pero no emitía `print()` con formato hacia la ventana de la terminal de Windows.
+  2. Si el editor copiaba rutas con comillas de Windows (ej. `"C:\Videos\clip.mp4"`), la validación de archivos fallaba silenciosamente antes de iniciar FFmpeg.
+- **Solución implementada:**
+  1. **Consola de Windows:** Se añadieron impresiones en tiempo real en la terminal del agente con encabezados claros:
+     - `[MEDIAHUB] >> NUEVA ORDEN DE RENDERIZADO RECIBIDA`
+     - Detalle de clips: Base, Mosca, Cierre y Salida.
+     - Duraciones exactas analizadas con FFprobe y offset calculado.
+     - Barra de progreso interactiva en terminal: `>> RENDERIZANDO: X% | FPS: Y | Speed: Z | Tiempo: T`.
+     - Confirmación de éxito con peso de archivo o causa exacta de cualquier error.
+  2. **Limpieza de Rutas:** El agente y la web ahora limpian automáticamente comillas simples y dobles (`"`, `'`) de las rutas ingresadas.
+  3. **Consola Web y Fallback:** Se añadió un canal dual en la interfaz web (WebSocket + sondeo HTTP) para garantizar que la barra de progreso y los logs avancen incluso si los WebSockets se desconectan.
+
+---
+
+## 2. Actualización del Paquete de Descarga Oficial
+
+Se recompiló `MediaHubRenderAgent.exe` y se actualizó el archivo comprimido disponible para los usuarios en la web:
+- **Ruta:** `uploads/clients/MediaHub_Cliente_Render_Edicion.zip` (105 MB).
+- **Contenido:**
+  1. `MediaHubRenderAgent.exe` (Servidor autónomo compilado con `comdlg32.dll`).
+  2. `Iniciar_Agente_Render.bat` (Lanzador directo de 1 clic).
+  3. `bin/ffmpeg.exe` y `bin/ffprobe.exe` (Binarios integrados con soporte Nvidia NVENC).
+  4. `README_INSTALACION.txt`.

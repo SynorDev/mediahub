@@ -1,0 +1,68 @@
+# Walkthrough: Actas de Entrega de Equipos & Autollenado Dinámico
+
+Hemos implementado todas las mejoras solicitadas para el sistema de actas y gestiones de inventario en MediaHub:
+
+---
+
+## 1. Eliminación de datos duplicados y nueva tarjeta de Colaborador
+- **Antes:** Al asignar un colaborador o receptor en la entrega, aparecía erróneamente un contador `Cant: 1` junto con el icono de dispositivos.
+- **Ahora:** El sistema identifica automáticamente a las personas/personal (`es_persona = True`):
+  - **No muestra `Cant: 1`**.
+  - Muestra un avatar con las iniciales del colaborador.
+  - Muestra el nombre en negrita con badge de su **Rol / Cargo** (`[Productor]`, `[Ingeniero]`, etc.).
+  - Muestra su **Correo electrónico** (`✉️ correo@ejemplo.com`).
+  - Muestra su **Celular / Teléfono** (`📞 300xxxxxxx`).
+  - Si cuenta con Cédula registrada, muestra su identificación.
+- **Para los Equipos / Inventario:** Se conservan la miniatura fotográfica (con lightbox de alta resolución), el Modelo/Nombre, el Serial `S/N: ...`, la `Cant: X` y la `[Categoría]`.
+
+---
+
+## 2. Autollenado Inteligente de Cláusulas y Textos Legales
+Los campos entre corchetes dentro de la cláusula de apertura y de cierre ahora se resuelven automáticamente a partir de los datos vinculados del módulo:
+
+> **Texto configurado:**  
+> *"Por medio de la presente la FUNDACION ICTUS hace entrega e inventario de los siguientes equipos a [RESPONSABLE], identificado con [CORREO], para el desempeno exclusivo de sus funciones laborales."*
+>
+> **Texto generado automáticamente:**  
+> *"Por medio de la presente la FUNDACION ICTUS hace entrega e inventario de los siguientes equipos a **Mauricio Ospina**, identificado con **mauricio.ospina@teleamiga.tv**, para el desempeno exclusivo de sus funciones laborales."*
+
+### Variables soportadas:
+| Variable | Descripción | Ejemplo de Resolución |
+| :--- | :--- | :--- |
+| `[RESPONSABLE]` / `[ENCARGADO]` / `[COLABORADOR]` | Nombre completo de la persona que recibe | *Mauricio Ospina* |
+| `[CORREO]` / `[EMAIL]` | Correo electrónico del responsable | *mauricio.ospina@teleamiga.tv* |
+| `[CELULAR]` / `[TELEFONO]` | Número de teléfono o móvil | *3001234567* |
+| `[ROL]` / `[CARGO]` | Cargo o función en la empresa | *Productor* |
+| `[CEDULA]` / `[DOCUMENTO]` | Número de identificación | *1.020.345.678* |
+| `[EQUIPOS]` / `[ITEMS]` | Lista de equipos asignados | *DTP340 (Disco Externo 4Tb)* |
+| `[FECHA]` / `[FECHA_COMPLETA]` | Fecha actual formateada | *07/09/2026* / *7 de Septiembre de 2026* |
+| `[ORGANIZACION]` / `[EMPRESA]` | Nombre de la entidad | *FUNDACIÓN ICTUS* |
+
+---
+
+## 3. Selector de Alcance: Dos tipos de Actas (Consolidada vs. Entrega Puntual)
+En el panel lateral del maquetador (**Sección 1: Alcance y Tipo de Acta**) ahora puedes alternar fácilmente entre:
+
+1. **👤 Acta Consolidada por Responsable (Todo lo que se le ha asignado):**
+   - El sistema detecta todos los colaboradores que tienen ítems asignados en el módulo.
+   - Al seleccionar a un colaborador (ej: *Mauricio Ospina*), el reporte filtra automáticamente **todas sus entregas históricas**, consolidando todo su inventario activo en una sola acta A4.
+   - Las cláusulas y firmas se vinculan de inmediato a dicho responsable.
+
+2. **🎯 Entrega Puntual / Selección Específica (Uno o pocos elementos):**
+   - Permite seleccionar mediante casillas de verificación o multiselector una entrega específica o un conjunto puntual de equipos asignados en una solicitud esporádica.
+   - Ideal para cuando se le entrega solo un cable, un disco o un micrófono y se requiere un acta individual rápida.
+
+3. **📜 Todas las Entregas (Acta Global):**
+   - Consolida la totalidad de registros del módulo en una planilla global.
+
+---
+
+## 4. Acceso Directo de 1-Clic desde la Gestión
+- Cada tarjeta de registro en la vista de **Gestiones Personalizadas** cuenta con un botón directo `📄 Generar Acta`.
+- Al hacer clic, abre el maquetador en una pestaña nueva con el modo **Entrega Puntual** pre-cargado con ese registro exacto, listo para exportar a PDF o JPG.
+
+---
+
+## Verificación y Pruebas Realizadas
+- `python -m py_compile` validado en todos los archivos del proyecto.
+- Ejecutado script de prueba [`verify_actas.py`](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/scratch/verify_actas.py) confirmando la resolución de `[RESPONSABLE]`, `[CORREO]`, `[ROL]`, `[CELULAR]` en registros reales de la Fundación Ictus.

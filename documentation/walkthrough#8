@@ -1,0 +1,55 @@
+# Walkthrough: Sistema de Renderizado Automatizado GPU para Edición en MediaHub
+
+Implementamos exitosamente el **Cliente Local de Renderizado GPU** para las estaciones de trabajo de Edición de Teleamiga, junto con su integración en el módulo de Herramientas de MediaHub y la descarga directa del paquete de instalación.
+
+---
+
+## 1. Componentes Desarrollados
+
+### A. Agente Local de Renderizado (`render_agent/`)
+- **[mediahub_render_agent.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/render_agent/mediahub_render_agent.py)**:
+  - Servidor FastAPI asíncrono en puerto `18500` (`http://127.0.0.1:18500`).
+  - Detección automática de tarjeta gráfica NVIDIA (`nvidia-smi`) y disponibilidad del encoder por hardware `h264_nvenc`.
+  - Integración del explorador de archivos nativo de Windows (`tkinter.filedialog`) en los endpoints `/browse-file` y `/browse-save`.
+  - **Sincronización Matemática de Cola (Tail Alignment)**:
+    - Mide duraciones exactas con `ffprobe`.
+    - Calcula el desfase exacto: $\text{offset} = (D_m - (D_b \pmod{D_m})) \pmod{D_m}$ para que el último fotograma de la mosca animada coincida con el último fotograma del video base.
+    - Superposición con canal alfa y normalización de resolución (1080p), framerate (30fps) y audio (48kHz stereo) concatenando la cortinilla de cierre.
+    - Codificación por hardware con `h264_nvenc -preset p4 -rc vbr -cq 19 -b:v 15M`.
+  - Comunicación en tiempo real por WebSocket (`/ws`) emitiendo FPS, porcentaje, tiempo transcurrido, tiempo restante y logs.
+- **[Iniciar_Agente_Render.bat](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/render_agent/Iniciar_Agente_Render.bat)**: Script para arranque en un clic en cualquier estación de edición.
+- **[compilar_exe.bat](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/render_agent/compilar_exe.bat)**: Script para generar `MediaHubRenderAgent.exe` con PyInstaller.
+- **[README_INSTALACION.txt](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/render_agent/README_INSTALACION.txt)**: Guía paso a paso para los editores.
+
+### B. Paquete de Distribución y Descarga en MediaHub
+- **Archivo ZIP**: `uploads/clients/MediaHub_Cliente_Render_Edicion.zip` (empaquetado y listo para ser descargado).
+- **Endpoint**: `@app.get('/descargar-cliente-edicion')` en [main.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/main.py).
+
+### C. Módulo Web en MediaHub
+- **[pages/render_edicion.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/pages/render_edicion.py)**:
+  - Ruta `@ui.page('/herramientas/render-edicion')`.
+  - Control de acceso por área: exclusivo para personal de **Edición**, **Postproducción** y **Sistemas/Admin**.
+  - Detector en vivo del agente local (`http://127.0.0.1:18500/health`).
+  - **Si está desconectado**: Muestra banner informativo, botón de descarga directa del `.zip` y asistente de 3 pasos.
+  - **Si está conectado**: Banner verde con la GPU local detectada (ej. *NVIDIA Quadro P2000 / NVENC Activo*), botones "Examinar en mi PC" que abren la ventana de Windows, barra de progreso con gradiente y consola de registro colapsable.
+- **[pages/herramientas.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/pages/herramientas.py)**:
+  - Nueva tarjeta para **"Motor de Renderizado GPU"** en la Tienda de Herramientas.
+  - Botón "Abrir Módulo" para editores y botón directo para descargar el instalador cliente.
+
+---
+
+## 2. Pruebas y Validación Realizadas
+
+1. **Detección de Hardware & NVENC:**
+   - Script `scratch/test_agent.py` verificó exitosamente la GPU NVIDIA, driver y soporte del encoder `h264_nvenc` en FFmpeg.
+2. **Prueba Integral de Renderizado con GPU:**
+   - Script `scratch/test_ffmpeg_render.py` generó clips de prueba sintéticos:
+     - Video base de 5.0 segundos con audio.
+     - Mosca animada con canal alfa de 2.0 segundos.
+     - Cortinilla de cierre de 2.0 segundos con audio.
+   - Se ejecutó el pipeline completo con NVENC:
+     - Duración calculada: 7.04 segundos (exacto al total base + cierre).
+     - Mosca alineada matemáticamente al último fotograma del video base.
+     - Salida generada: 1920x1080 con audio normalizado y codificación acelerada por hardware.
+3. **Paquete de Descarga:**
+   - `MediaHub_Cliente_Render_Edicion.zip` verificado con todos sus archivos y scripts.

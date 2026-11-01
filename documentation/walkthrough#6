@@ -1,0 +1,59 @@
+# Walkthrough: Modularización de la Generación de Reportes PDF (MediaHub)
+
+Se ha completado la modularización y desacoplamiento de la arquitectura de reportes de inventario y actas en MediaHub, separando las responsabilidades en módulos independientes y altamente cohesivos.
+
+---
+
+## 1. Módulos Creados y Estructura Resultante
+
+```
+MediaHub/components/
+├── report_table_renderer.py   # [NUEVO] Motor de cálculo de alturas y renderizado de tablas CSS Grid
+├── report_header_footer.py    # [NUEVO] Encabezados, cláusulas dinámicas, firmas y pie de página institucional
+├── report_page_canvas.py      # [NUEVO] Unificador de hojas físicas (Carta / A4), paginador determinista y ensamble
+├── custom_report_preview.py   # [REFACTORIZADO] Fachada unificada que re-exporta la API pública
+└── custom_report_builder.py   # [REFACTORIZADO] Panel maquetador lateral enfocado exclusivamente en UI y SQLite
+```
+
+---
+
+## 2. Responsabilidades por Módulo
+
+### [components/report_table_renderer.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/report_table_renderer.py)
+- **`estimar_altura_registro(...)`**: Cálculo predictivo y calibrado de la altura de cada fila según número de fotos, accesorios, colaboradores vinculados, badges de kits y el modo de acomodación (`compacto`, `comodo`, `auto`).
+- **`render_report_table(...)`**:
+  - Contenedor protector con CSS Grid `repeat(N, minmax(0, 1fr))` y `box-border`.
+  - Encabezado con contraste oscuro y bordes discretos.
+  - Celdas con `overflow-wrap: anywhere; word-break: break-word;` y renderizado de imágenes escaladas con `object-contain`.
+
+### [components/report_header_footer.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/report_header_footer.py)
+- **`resolver_texto_con_variables(...)`**: Sustitución dinámica de tags (`[RESPONSABLE]`, `[CORREO]`, `[CEDULA]`, etc.).
+- **`estimar_altura_texto(...)`**: Cálculo de altura de párrafos legales.
+- **`render_report_header(...)`**: Logotipo institucional, metadatos (`ID Doc`, fecha, área) y títulos.
+- **`render_report_apertura(...)`**: Cláusula legal de entrega en la primera hoja.
+- **`render_report_cierre(...)`**: Cláusula de aceptación de responsabilidad.
+- **`render_report_firmas(...)`**: Bloque simétrico de firmas con líneas de rúbrica y cargos.
+- **`render_report_footer(...)`**: Pie de página institucional sagrado (`Página X de Y`, metadatos y línea divisoria), fijado al borde inferior mediante `shrink-0`.
+
+### [components/report_page_canvas.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/report_page_canvas.py)
+- **`obtener_especificacion_papel(formato_papel)`**:
+  - **Carta (Letter)**: `816px x 1056px`, espacio útil de `740px`.
+  - **A4**: `794px x 1123px`, espacio útil de `800px`.
+- **`calcular_paginacion_reporte(...)`**: Motor determinista libre de páginas vacías con reubicación inteligente de registros finales para acompañar a las firmas.
+- **`render_custom_a4_paper(...)`**: Orquestador principal que ensambla la barra superior interactiva y las páginas físicas secuenciando Header -> Apertura -> Tabla -> Cierre -> Firmas -> Pie de Página.
+
+### [components/custom_report_preview.py](file:///c:/Sistemas%20Desarrollo/Gestion/MediaHub/components/custom_report_preview.py)
+- Actúa como fachada unificada retrocompatible re-exportando todas las funciones públicas para garantizar que cualquier componente o script existente continúe funcionando sin modificaciones.
+
+---
+
+## 3. Pruebas y Validación en Vivo
+
+1. **Compilación sintáctica**: Todos los módulos compilaron exitosamente sin errores de dependencias ni referencias circulares.
+2. **Pruebas de paginación**:
+   - Formato **Carta**: 27 registros de Studio Tv distribuidos en **6 páginas** balanceadas, firmas en pág 6, cero hojas vacías.
+   - Formato **A4**: 27 registros de Studio Tv distribuidos en **5 páginas** balanceadas, firmas en pág 5, cero hojas vacías.
+3. **Verificación interactiva en navegador**:
+   - Ruta: `http://127.0.0.1:5480/reportes_inventario/system_inventory`
+   - Cambio de formato en tiempo real de Carta a A4 recalculando dimensiones y total de páginas inmediatamente.
+   - Encabezado, tabla, firmas y pie de página perfectamente renderizados.

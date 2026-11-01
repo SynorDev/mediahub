@@ -1,0 +1,62 @@
+# Walkthrough: Cliente Autónomo de Renderizado GPU (Teleamiga Edición)
+
+Se corrigieron los problemas reportados y se empaquetó el cliente de manera **100% autónoma y lista para usar en estaciones de trabajo limpias** (sin Python, sin pip y sin FFmpeg previamente instalados).
+
+---
+
+## 1. Problemas Resueltos
+
+### A. Corrección del Error 500 en MediaHub Web
+- **Causa:** NiceGUI prohíbe explícitamente tener etiquetas `<script>` dentro de `ui.html(...)`.
+- **Solución:** Se separó la estructura visual en `ui.html(...)` y el bloque de scripts de comunicación con el agente local se movió a `ui.add_body_html(...)`. La página `/herramientas/render-edicion` ahora carga sin ningún error 500.
+
+### B. Paquete 100% Autónomo para Máquinas Limpias
+- **Causa reportada:** En una estación de edición limpia:
+  - Windows no tiene Python ni pip instalados (el comando `python` invoca el alias del Microsoft Store).
+  - FFmpeg no está instalado en las variables de entorno de Windows.
+- **Solución implementada:**
+  1. **Compilación de `MediaHubRenderAgent.exe` (Standalone):**  
+     Se compiló el servidor FastAPI + Uvicorn + WebSockets en un único ejecutable binario de Windows (`.exe` de 39 MB). No requiere tener Python ni librerías instaladas en la PC de edición.
+  2. **Inclusión de FFmpeg y FFprobe en el paquete:**  
+     Se integraron los ejecutables `ffmpeg.exe` y `ffprobe.exe` con soporte NVENC dentro de la subcarpeta `bin/`.
+  3. **Detección Automática Local:**  
+     El agente detecta automáticamente sus propios binarios en la carpeta local o en `bin/`.
+  4. **Lanzador Directo `Iniciar_Agente_Render.bat`:**  
+     Actualizado para lanzar directamente `MediaHubRenderAgent.exe` sin verificar Python ni pip.
+
+---
+
+## 2. Contenido del Nuevo Paquete `MediaHub_Cliente_Render_Edicion.zip`
+
+El archivo de descarga oficial en el servidor (`uploads/clients/MediaHub_Cliente_Render_Edicion.zip`, 107 MB comprimido) ahora contiene:
+
+```
+MediaHub_Cliente_Render_Edicion/
+├── MediaHubRenderAgent.exe       <- Servidor local compilado (0 dependencias)
+├── Iniciar_Agente_Render.bat     <- Doble clic para iniciar de inmediato
+├── README_INSTALACION.txt        <- Guía paso a paso para el editor
+└── bin/
+    ├── ffmpeg.exe                <- Motor FFmpeg con aceleración NVENC
+    └── ffprobe.exe               <- Analizador de metadatos de video
+```
+
+---
+
+## 3. Verificación de Funcionamiento
+
+Se ejecutó una prueba de arranque del binario autónomo `MediaHubRenderAgent.exe` simulando una máquina limpia:
+```json
+{
+  "status": "online",
+  "agent": "MediaHub Local Render Agent",
+  "version": "1.0.0",
+  "gpu": {
+    "gpu_name": "NVIDIA GPU (Quadro / RTX)",
+    "nvenc_available": true,
+    "ffmpeg_path": "c:\\...\\render_agent\\bin\\ffmpeg.exe",
+    "ffprobe_path": "c:\\...\\render_agent\\bin\\ffprobe.exe"
+  },
+  "is_rendering": false
+}
+```
+**Resultado:** El ejecutable inició en segundo plano, detectó inmediatamente la GPU NVIDIA y usó automáticamente los binarios de FFmpeg incluidos en su propia carpeta `bin/`.
